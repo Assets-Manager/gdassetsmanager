@@ -23,6 +23,7 @@
  */
 
 #include <GDAssimpLoader.hpp>
+#include <NativeFileDialog.hpp>
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,6 +41,7 @@ void GDN_EXPORT godot_nativescript_init(void *handle) {
     godot::Godot::nativescript_init(handle);
 
     godot::register_class<GDAssimpLoader>();
+    godot::register_class<NativeFileDialog>();
 }
 
 #ifdef __cplusplus
