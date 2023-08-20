@@ -25,7 +25,13 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/third-party/assimp assimp)
 set(SRCS "${PROJECT_SOURCE_DIR}/main.cpp"
          "${PROJECT_SOURCE_DIR}/src/GDAssimpLoader.cpp"
          "${PROJECT_SOURCE_DIR}/src/GDAssimpIOStream.cpp"
-         "${PROJECT_SOURCE_DIR}/src/NativeFileDialog.cpp")
+         "${PROJECT_SOURCE_DIR}/src/GDNativeFileDialog.cpp"
+         "${PROJECT_SOURCE_DIR}/src/GDAudioWaveRenderer.cpp"
+         "${PROJECT_SOURCE_DIR}/src/AudioLoaders/DRAudioLoader.cpp"
+         "${PROJECT_SOURCE_DIR}/src/AudioLoaders/WavAudioLoader.cpp"
+         "${PROJECT_SOURCE_DIR}/src/AudioLoaders/Mp3AudioLoader.cpp"
+         "${PROJECT_SOURCE_DIR}/src/AudioLoaders/FlacAudioLoader.cpp"
+         "${PROJECT_SOURCE_DIR}/src/AudioLoaders/OggAudioLoader.cpp")
 set(LIBS "")
 
 if(WIN32)
@@ -41,6 +47,8 @@ include_directories("${PROJECT_SOURCE_DIR}/third-party/godot-cpp/include"
                     "${PROJECT_SOURCE_DIR}/third-party/godot-cpp/godot-headers"
                     "${PROJECT_SOURCE_DIR}/third-party/assimp/include"
                     "${PROJECT_SOURCE_DIR}/third-party/portable-file-dialogs"
+                    "${PROJECT_SOURCE_DIR}/third-party/dr_libs"
+                    "${PROJECT_SOURCE_DIR}/third-party/stb"
                     "${PROJECT_SOURCE_DIR}/include")
 
 link_directories("${PROJECT_SOURCE_DIR}/third-party/godot-cpp/bin")

@@ -1,69 +1,69 @@
 // License
 
-#include <NativeFileDialog.hpp>
+#include <GDNativeFileDialog.hpp>
 #include <portable-file-dialogs.h>
 
-void NativeFileDialog::_register_methods()
+void GDNativeFileDialog::_register_methods()
 {
-    godot::register_property<NativeFileDialog, godot::String>("title", &NativeFileDialog::SetTitle, &NativeFileDialog::GetTitle, "");
-    godot::register_property<NativeFileDialog, godot::String>("initial_path", &NativeFileDialog::SetInitialPath, &NativeFileDialog::GetInitialPath, "");
-    godot::register_property<NativeFileDialog, godot::PoolStringArray>("filters", &NativeFileDialog::SetFilters, &NativeFileDialog::GetFilters, godot::PoolStringArray());
-    godot::register_property<NativeFileDialog, int>("dialog_type", &NativeFileDialog::SetDialogType, &NativeFileDialog::GetDialogType, (int) FileDialogType::OPEN_FILE, GODOT_METHOD_RPC_MODE_DISABLED, GODOT_PROPERTY_USAGE_DEFAULT, GODOT_PROPERTY_HINT_ENUM, "OPEN_FILE, SAVE_FILE, SELECT_DIR");
-    godot::register_property<NativeFileDialog, bool>("multiselect", &NativeFileDialog::AllowMultiselect, &NativeFileDialog::IsMultiselect, false);
-    godot::register_method("show_modal", &NativeFileDialog::ShowModal);
+    godot::register_property<GDNativeFileDialog, godot::String>("title", &GDNativeFileDialog::SetTitle, &GDNativeFileDialog::GetTitle, "");
+    godot::register_property<GDNativeFileDialog, godot::String>("initial_path", &GDNativeFileDialog::SetInitialPath, &GDNativeFileDialog::GetInitialPath, "");
+    godot::register_property<GDNativeFileDialog, godot::PoolStringArray>("filters", &GDNativeFileDialog::SetFilters, &GDNativeFileDialog::GetFilters, godot::PoolStringArray());
+    godot::register_property<GDNativeFileDialog, int>("dialog_type", &GDNativeFileDialog::SetDialogType, &GDNativeFileDialog::GetDialogType, (int) FileDialogType::OPEN_FILE, GODOT_METHOD_RPC_MODE_DISABLED, GODOT_PROPERTY_USAGE_DEFAULT, GODOT_PROPERTY_HINT_ENUM, "OPEN_FILE, SAVE_FILE, SELECT_DIR");
+    godot::register_property<GDNativeFileDialog, bool>("multiselect", &GDNativeFileDialog::AllowMultiselect, &GDNativeFileDialog::IsMultiselect, false);
+    godot::register_method("show_modal", &GDNativeFileDialog::ShowModal);
 }
 
-void NativeFileDialog::SetTitle(godot::String _Title)
+void GDNativeFileDialog::SetTitle(godot::String _Title)
 {
     m_Title = _Title;
 }
 
-godot::String NativeFileDialog::GetTitle() const
+godot::String GDNativeFileDialog::GetTitle() const
 {
     return m_Title;
 }
 
-void NativeFileDialog::SetInitialPath(godot::String _InitialPath)
+void GDNativeFileDialog::SetInitialPath(godot::String _InitialPath)
 {
     m_InitialPath = _InitialPath;
 }
 
-godot::String NativeFileDialog::GetInitialPath() const
+godot::String GDNativeFileDialog::GetInitialPath() const
 {
     return m_InitialPath;
 }
 
-void NativeFileDialog::SetFilters(godot::PoolStringArray _Filters)
+void GDNativeFileDialog::SetFilters(godot::PoolStringArray _Filters)
 {
     m_Filters = _Filters;
 }
 
-godot::PoolStringArray NativeFileDialog::GetFilters() const
+godot::PoolStringArray GDNativeFileDialog::GetFilters() const
 {
     return m_Filters;
 }
 
-void NativeFileDialog::SetDialogType(int _Type)
+void GDNativeFileDialog::SetDialogType(int _Type)
 {
     m_Type = (FileDialogType)_Type;
 }
 
-int NativeFileDialog::GetDialogType() const
+int GDNativeFileDialog::GetDialogType() const
 {
     return (int) m_Type;
 }
 
-void NativeFileDialog::AllowMultiselect(bool _Multiselect)
+void GDNativeFileDialog::AllowMultiselect(bool _Multiselect)
 {
     m_Multiselect = _Multiselect;
 }
 
-bool NativeFileDialog::IsMultiselect() const
+bool GDNativeFileDialog::IsMultiselect() const
 {
     return m_Multiselect;
 }
 
-godot::PoolStringArray NativeFileDialog::ShowModal()
+godot::PoolStringArray GDNativeFileDialog::ShowModal()
 {
     godot::PoolStringArray result;
     std::vector<std::string> filters;

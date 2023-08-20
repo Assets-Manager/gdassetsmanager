@@ -13,11 +13,11 @@ enum FileDialogType
     SELECT_DIR
 };
 
-class NativeFileDialog : public godot::Node
+class GDNativeFileDialog : public godot::Node
 {
-    GODOT_CLASS(NativeFileDialog, godot::Node);
+    GODOT_CLASS(GDNativeFileDialog, godot::Node);
     public:
-        NativeFileDialog() : m_Type(FileDialogType::OPEN_FILE), m_Multiselect(false) {}
+        GDNativeFileDialog() : m_Type(FileDialogType::OPEN_FILE), m_Multiselect(false) {}
 
         void _init() { }
 
@@ -63,7 +63,7 @@ class NativeFileDialog : public godot::Node
         //                   std::vector<std::string> filters = { "All Files", "*" },
         //                   pfd::opt option = pfd::opt::none);
 
-        ~NativeFileDialog() {}
+        ~GDNativeFileDialog() {}
 
     private:
         godot::String m_Title;
