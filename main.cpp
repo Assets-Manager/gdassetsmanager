@@ -25,6 +25,7 @@
 #include <GDAssimpLoader.hpp>
 #include <GDNativeFileDialog.hpp>
 #include <GDAudioWaveRenderer.hpp>
+#include <GDFilewatcher.hpp>
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,6 +45,7 @@ void GDN_EXPORT godot_nativescript_init(void *handle) {
     godot::register_class<GDAssimpLoader>();
     godot::register_class<GDNativeFileDialog>();
     godot::register_class<GDAudioWaveRenderer>();
+    godot::register_class<GDFilewatcher>();
 }
 
 #ifdef __cplusplus
