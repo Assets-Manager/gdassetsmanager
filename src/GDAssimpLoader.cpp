@@ -130,7 +130,7 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(const aiMat
 	// void set_proximity_fade(const bool enabled);
 	// void set_proximity_fade_distance(const real_t distance);
 
-godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, const aiScene *_Scene, const aiNode *_Node) const
+godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, godot::Spatial *_Parent, const aiScene *_Scene, const aiNode *_Node) const
 {
     godot::Spatial *ret = nullptr;
 
@@ -189,6 +189,13 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, const aiScene *
         ret = instance;
     }
 
+    aiVector3D position, scale, rotation;
+    _Node->mTransformation.Decompose(scale, rotation, position);
+
+    ret->set_translation(godot::Vector3(position.x, position.y, position.z));
+    ret->set_scale(godot::Vector3(scale.x, scale.y, scale.z));
+    ret->set_rotation(godot::Vector3(rotation.x, rotation.y, rotation.z));
+
     // Sets the owner for the packed scene.
     if(!_Owner)
         _Owner = ret;
@@ -197,11 +204,13 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, const aiScene *
     if(_Node->mName.length > 0)
         ret->set_name(_Node->mName.C_Str());
 
+    if(_Parent)
+        _Parent->add_child(ret);
+
     // Go through all children
     for(int i = 0; i < _Node->mNumChildren; i++)
     {
-        godot::Spatial *child = LoadTree(_Owner, _Scene, _Node->mChildren[i]);
-        ret->add_child(child);
+        godot::Spatial *child = LoadTree(_Owner, ret, _Scene, _Node->mChildren[i]);
         child->set_owner(_Owner);
     }
 
@@ -221,6 +230,6 @@ godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File) const
     }
 
     godot::Ref<godot::PackedScene> ret = godot::PackedScene::_new();
-    ret->pack(LoadTree(nullptr, scene, scene->mRootNode));
+    ret->pack(LoadTree(nullptr, nullptr, scene, scene->mRootNode));
     return ret;
 }

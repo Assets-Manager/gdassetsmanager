@@ -26,7 +26,7 @@ class GDAssimpLoader : public godot::Reference
         godot::Ref<godot::PackedScene> Load(godot::String _File) const;
 
     private:
-        godot::Spatial *LoadTree(godot::Spatial *_Owner, const aiScene *_Scene, const aiNode *_Node) const;
+        godot::Spatial *LoadTree(godot::Spatial *_Owner, godot::Spatial *_Parent, const aiScene *_Scene, const aiNode *_Node) const;
 
         godot::Ref<godot::SpatialMaterial> aiMaterialToGodot(const aiMaterial *_Material) const;
 };

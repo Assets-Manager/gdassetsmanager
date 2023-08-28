@@ -23,7 +23,7 @@ bool CMp3AudioLoader::Load(const godot::String &_Path)
     drmp3_uint64 totalPCMFrames = drmp3_get_pcm_frame_count(&mp3);
 
     m_PCMFloatFrames.resize(totalPCMFrames * m_ChannelCount);
-    if(drmp3_read_pcm_frames_f32(&mp3, totalPCMFrames, m_PCMFloatFrames.write().ptr()) < m_PCMFloatFrames.size())
+    if(drmp3_read_pcm_frames_f32(&mp3, totalPCMFrames, m_PCMFloatFrames.write().ptr()) < totalPCMFrames)
     {
         drmp3_uninit(&mp3);
         m_File->close();

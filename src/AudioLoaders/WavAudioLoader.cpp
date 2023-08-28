@@ -21,7 +21,7 @@ bool CWavAudioLoader::Load(const godot::String &_Path)
     m_SampleRate = wav.sampleRate;
 
     m_PCMFloatFrames.resize(wav.totalPCMFrameCount * m_ChannelCount);
-    if(drwav_read_pcm_frames_f32(&wav, wav.totalPCMFrameCount, m_PCMFloatFrames.write().ptr()) < m_PCMFloatFrames.size())
+    if(drwav_read_pcm_frames_f32(&wav, wav.totalPCMFrameCount, m_PCMFloatFrames.write().ptr()) < wav.totalPCMFrameCount)
     {
         drwav_uninit(&wav);
         m_File->close();
