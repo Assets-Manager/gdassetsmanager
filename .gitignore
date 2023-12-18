@@ -1,3 +1,3 @@
-build/*
+build*/*
 third-party/godot-cpp/*
 .vscode/*

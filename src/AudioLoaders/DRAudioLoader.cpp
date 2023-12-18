@@ -1,6 +1,7 @@
 // License
 
 #include <AudioLoaders/DRAudioLoader.hpp>
+#include <cstring>
 
 size_t CDRAudioLoader::dr_read_proc(void* _UserData, void* _BufferOut, size_t _BytesToRead)
 {
