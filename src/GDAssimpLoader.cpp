@@ -16,6 +16,10 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(const aiMat
 {
     godot::Ref<godot::SpatialMaterial> ret = godot::SpatialMaterial::_new();
 
+    int twosided = 0;
+    if(_Material->Get(AI_MATKEY_TWOSIDED, twosided) == AI_SUCCESS)
+        ret->set_cull_mode(twosided ? godot::SpatialMaterial::CULL_DISABLED : godot::SpatialMaterial::CULL_BACK);
+
     aiString name;
     if(_Material->Get(AI_MATKEY_NAME, name) == AI_SUCCESS)
         ret->set_name(name.C_Str());
@@ -35,6 +39,7 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(const aiMat
             godot::Color c = ret->get_albedo();
             c.a = opacity;
             ret->set_albedo(c);
+            ret->set_feature(godot::SpatialMaterial::FEATURE_TRANSPARENT, true);
         }
     }
 
@@ -50,12 +55,72 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(const aiMat
             case aiBlendMode::aiBlendMode_Additive: ret->set_blend_mode(godot::SpatialMaterial::BLEND_MODE_ADD); break;
         }
     }
-    
-    int twosided = 0;
-    if(_Material->Get(AI_MATKEY_TWOSIDED, twosided) == AI_SUCCESS)
-        ret->set_cull_mode(twosided ? godot::SpatialMaterial::CULL_DISABLED : godot::SpatialMaterial::CULL_BACK);
 
-    
+
+// #define AI_MATKEY_REFLECTIVITY "$mat.reflectivity", 0, 0
+
+// #define AI_MATKEY_REFRACTI "$mat.refracti", 0, 0
+// #define AI_MATKEY_COLOR_DIFFUSE "$clr.diffuse", 0, 0
+// #define AI_MATKEY_COLOR_AMBIENT "$clr.ambient", 0, 0
+// #define AI_MATKEY_COLOR_SPECULAR "$clr.specular", 0, 0
+// #define AI_MATKEY_COLOR_EMISSIVE "$clr.emissive", 0, 0
+// #define AI_MATKEY_COLOR_REFLECTIVE "$clr.reflective", 0, 0
+// #define AI_MATKEY_GLOBAL_BACKGROUND_IMAGE "?bg.global", 0, 0
+
+// // ---------------------------------------------------------------------------
+// // PBR material support
+// // --------------------
+// // Properties defining PBR rendering techniques
+// #define AI_MATKEY_USE_COLOR_MAP "$mat.useColorMap", 0, 0
+
+// // Metallic/Roughness Workflow
+// // ---------------------------
+// // Base RGBA color factor. Will be multiplied by final base color texture values if extant
+// // Note: Importers may choose to copy this into AI_MATKEY_COLOR_DIFFUSE for compatibility
+// // with renderers and formats that do not support Metallic/Roughness PBR
+// #define AI_MATKEY_BASE_COLOR "$clr.base", 0, 0
+// #define AI_MATKEY_BASE_COLOR_TEXTURE aiTextureType_BASE_COLOR, 0
+// #define AI_MATKEY_USE_METALLIC_MAP "$mat.useMetallicMap", 0, 0
+// // Metallic factor. 0.0 = Full Dielectric, 1.0 = Full Metal
+// #define AI_MATKEY_METALLIC_FACTOR "$mat.metallicFactor", 0, 0
+// #define AI_MATKEY_METALLIC_TEXTURE aiTextureType_METALNESS, 0
+// #define AI_MATKEY_USE_ROUGHNESS_MAP "$mat.useRoughnessMap", 0, 0
+// // Roughness factor. 0.0 = Perfectly Smooth, 1.0 = Completely Rough
+// #define AI_MATKEY_ROUGHNESS_FACTOR "$mat.roughnessFactor", 0, 0
+// #define AI_MATKEY_ROUGHNESS_TEXTURE aiTextureType_DIFFUSE_ROUGHNESS, 0
+// // Anisotropy factor. 0.0 = isotropic, 1.0 = anisotropy along tangent direction,
+// // -1.0 = anisotropy along bitangent direction
+// #define AI_MATKEY_ANISOTROPY_FACTOR "$mat.anisotropyFactor", 0, 0
+
+// // Specular/Glossiness Workflow
+// // ---------------------------
+// // Diffuse/Albedo Color. Note: Pure Metals have a diffuse of {0,0,0}
+// // AI_MATKEY_COLOR_DIFFUSE
+// // Specular Color.
+// // Note: Metallic/Roughness may also have a Specular Color
+// // AI_MATKEY_COLOR_SPECULAR
+// #define AI_MATKEY_SPECULAR_FACTOR "$mat.specularFactor", 0, 0
+// // Glossiness factor. 0.0 = Completely Rough, 1.0 = Perfectly Smooth
+// #define AI_MATKEY_GLOSSINESS_FACTOR "$mat.glossinessFactor", 0, 0
+
+// // Sheen
+// // -----
+// // Sheen base RGB color. Default {0,0,0}
+// #define AI_MATKEY_SHEEN_COLOR_FACTOR "$clr.sheen.factor", 0, 0
+// // Sheen Roughness Factor.
+// #define AI_MATKEY_SHEEN_ROUGHNESS_FACTOR "$mat.sheen.roughnessFactor", 0, 0
+// #define AI_MATKEY_SHEEN_COLOR_TEXTURE aiTextureType_SHEEN, 0
+// #define AI_MATKEY_SHEEN_ROUGHNESS_TEXTURE aiTextureType_SHEEN, 1
+
+// // Clearcoat
+// // ---------
+// // Clearcoat layer intensity. 0.0 = none (disabled)
+// #define AI_MATKEY_CLEARCOAT_FACTOR "$mat.clearcoat.factor", 0, 0
+// #define AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR "$mat.clearcoat.roughnessFactor", 0, 0
+// #define AI_MATKEY_CLEARCOAT_TEXTURE aiTextureType_CLEARCOAT, 0
+// #define AI_MATKEY_CLEARCOAT_ROUGHNESS_TEXTURE aiTextureType_CLEARCOAT, 1
+// #define AI_MATKEY_CLEARCOAT_NORMAL_TEXTURE aiTextureType_CLEARCOAT, 2
+
 	// void set_clearcoat(const real_t clearcoat);
 	// void set_clearcoat_gloss(const real_t clearcoat_gloss);
 
@@ -147,16 +212,12 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, godot::Spatial 
         {
             const aiMesh *mesh = _Scene->mMeshes[_Node->mMeshes[i]];
 
-            godot::PoolVector3Array vertices, normals;
-            godot::PoolVector2Array uvs;
+            godot::PoolVector3Array vertices;
             godot::PoolIntArray indices;
 
             vertices.resize(mesh->mNumVertices);
-            normals.resize(mesh->mNumVertices);
-            // uvs.resize(mesh->mNumVertices);
 
             memcpy(vertices.write().ptr(), mesh->mVertices, sizeof(ai_real) * 3 * mesh->mNumVertices);
-            memcpy(normals.write().ptr(), mesh->mNormals, sizeof(ai_real) * 3 * mesh->mNumVertices);
 
             for (size_t f = 0; f < mesh->mNumFaces; f++)
             {
@@ -168,8 +229,65 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, godot::Spatial 
             godot::Array data;
             data.resize(godot::ArrayMesh::ARRAY_MAX);
             data[godot::ArrayMesh::ARRAY_VERTEX] = vertices;
-            data[godot::ArrayMesh::ARRAY_NORMAL] = normals;
             data[godot::ArrayMesh::ARRAY_INDEX] = indices;
+
+            // Normals are optional
+            if(mesh->mNormals)
+            {
+                godot::PoolVector3Array normals;
+                normals.resize(mesh->mNumVertices);
+                memcpy(normals.write().ptr(), mesh->mNormals, sizeof(ai_real) * 3 * mesh->mNumVertices);
+                data[godot::ArrayMesh::ARRAY_NORMAL] = normals;
+
+                if(mesh->HasTangentsAndBitangents()) {
+                    godot::PoolRealArray tangents;
+                    tangents.resize(mesh->mNumVertices * 4);
+
+                    for (size_t j = 0; j < mesh->mNumVertices; j++)
+                    {
+                        auto aiTangents = mesh->mTangents[j];
+                        godot::Vector3 tangent(aiTangents.x, aiTangents.y, aiTangents.z);
+                        auto aiBitangent = mesh->mBitangents[j];
+                        godot::Vector3 bitangent(aiBitangent.x, aiBitangent.y, aiBitangent.z);
+                        float d = ((godot::PoolVector3Array)data[godot::ArrayMesh::ARRAY_NORMAL])[j].cross(tangent).dot(bitangent) > 0.f ? 1.f : -1.f;
+                        tangents.set(j * 4, tangent.x);
+                        tangents.set(j * 4 + 1, tangent.y);
+                        tangents.set(j * 4 + 2, tangent.z);
+                        tangents.set(j * 4 + 3, d);
+                    }
+                    data[godot::ArrayMesh::ARRAY_TANGENT] = tangents;   
+                }
+            }
+
+            // Vertex colors are optional
+            // Since Godot only supports one color "channel", only the first one of assimp will be used.
+            if(mesh->mColors[0])
+            {
+                godot::PoolColorArray colors;
+                colors.resize(mesh->mNumVertices);
+                memcpy(colors.write().ptr(), mesh->mColors[0], sizeof(ai_real) * 4 * mesh->mNumVertices);
+                data[godot::ArrayMesh::ARRAY_COLOR] = colors;
+            }
+
+            // Godot only supports two uv channels
+            for (size_t i = 0; i < 2; i++)
+            {
+                if(mesh->mTextureCoords[i])
+                {
+                    godot::PoolVector2Array uvs;
+                    uvs.resize(mesh->mNumVertices);
+                    for (size_t j = 0; j < mesh->mNumVertices; i++)
+                    {
+                        auto vec = mesh->mTextureCoords[i][j];
+                        uvs.set(j, godot::Vector2(vec.x, vec.y));
+                    }
+
+                    // Assigns channel one and two if needed.
+                    data[godot::ArrayMesh::ARRAY_TEX_UV + i] = uvs;
+                }
+                else
+                    break;
+            }
 
             arrayMesh->add_surface_from_arrays(godot::ArrayMesh::PRIMITIVE_TRIANGLES, data);
 
@@ -221,8 +339,22 @@ godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File) const
 {
     Assimp::Importer importer;
     importer.SetIOHandler(new GDAssimpIOSystem());
+    importer.SetPropertyBool(AI_CONFIG_PP_FD_REMOVE, true);
+    importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
+    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
 
-    const aiScene *scene = importer.ReadFile(_File.utf8().get_data(), aiProcess_FlipWindingOrder | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_RemoveRedundantMaterials | aiProcess_OptimizeMeshes);
+    const aiScene *scene = importer.ReadFile(_File.utf8().get_data(), 
+                                            aiProcess_CalcTangentSpace |
+                                            aiProcess_FlipWindingOrder | 
+                                            aiProcess_ImproveCacheLocality |
+                                            aiProcess_Triangulate | 
+                                            aiProcess_GenUVCoords |
+                                            aiProcess_JoinIdenticalVertices | 
+                                            aiProcess_TransformUVCoords |
+                                            aiProcess_FindInstances |
+                                            aiProcess_RemoveRedundantMaterials | 
+                                            aiProcess_PopulateArmatureData |
+                                            aiProcess_OptimizeMeshes);
     if(!scene)
     {
         ERR_PRINT(importer.GetErrorString());
