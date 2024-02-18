@@ -6,13 +6,51 @@
 #include <GDAssimpIOStream.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
+#include <Image.hpp>
+#include <ImageTexture.hpp>
+#include <GDError.hpp>
+#include <Variant.hpp>
 
 void GDAssimpLoader::_register_methods()
 {
     godot::register_method("load", &GDAssimpLoader::Load);
+    godot::register_method("get_errors", &GDAssimpLoader::GetErrors);
 }
 
-godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(const aiMaterial *_Material) const
+godot::Ref<godot::Texture> GDAssimpLoader::LoadTexture(godot::String _BasePath, const aiMaterial *_Material, aiTextureType _Type)
+{
+    aiString path;
+    aiTextureMapMode mappingMode;
+    if(_Material->GetTexture(_Type, 0, &path, nullptr, nullptr, nullptr, nullptr, &mappingMode) == AI_SUCCESS)
+    {
+        godot::Ref<godot::Image> img = godot::Image::_new();
+        auto gdpath = _BasePath.plus_file(path.C_Str());
+        if(img->load(gdpath) == godot::Error::OK)
+        {
+            godot::Ref<godot::ImageTexture> texture = godot::ImageTexture::_new();
+            int32_t flags = godot::Texture::FLAGS_DEFAULT;
+
+            if (mappingMode == aiTextureMapMode_Clamp) 
+                flags = flags & ~godot::Texture::FLAG_REPEAT;
+            else if (mappingMode == aiTextureMapMode_Mirror)
+                flags = flags | godot::Texture::FLAG_MIRRORED_REPEAT;
+
+            texture->create_from_image(img, flags);
+            return texture;
+        }
+        else
+        {
+            godot::Ref<GDError> err = GDError::_new();
+            err->ErrorCode = (int)godot::Error::ERR_FILE_CANT_OPEN;
+            err->Message = gdpath;
+            m_Errors.append(err);
+        }
+    }    
+
+    return nullptr;
+}
+
+godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::String _BasePath, const aiMaterial *_Material)
 {
     godot::Ref<godot::SpatialMaterial> ret = godot::SpatialMaterial::_new();
 
@@ -31,6 +69,13 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(const aiMat
     if(_Material->Get(AI_MATKEY_COLOR_EMISSIVE, color) == AI_SUCCESS)
         ret->set_emission(godot::Color(color.r, color.g, color.b));
 
+    float emissive;
+    if(_Material->Get(AI_MATKEY_EMISSIVE_INTENSITY, emissive) == AI_SUCCESS)
+    {
+        ret->set_emission_energy(emissive);
+        ret->set_feature(godot::SpatialMaterial::FEATURE_EMISSION, true);
+    }
+
     float opacity;
     if(_Material->Get(AI_MATKEY_OPACITY, color) == AI_SUCCESS)
     {
@@ -40,12 +85,14 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(const aiMat
             c.a = opacity;
             ret->set_albedo(c);
             ret->set_feature(godot::SpatialMaterial::FEATURE_TRANSPARENT, true);
+            ret->set_depth_draw_mode(godot::SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+            ret->set_cull_mode(godot::SpatialMaterial::CULL_DISABLED);
         }
     }
 
-    float shiny;
-    if(_Material->Get(AI_MATKEY_SHININESS_STRENGTH, shiny) == AI_SUCCESS)
-        ret->set_specular(shiny);
+    float specular;
+    if(_Material->Get(AI_MATKEY_SPECULAR_FACTOR, specular) == AI_SUCCESS)
+        ret->set_specular(specular);
 
     int blendMode;
     if(_Material->Get(AI_MATKEY_BLEND_FUNC, blendMode) == AI_SUCCESS)
@@ -56,146 +103,98 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(const aiMat
         }
     }
 
+    float metal;
+    if(_Material->Get(AI_MATKEY_METALLIC_FACTOR, metal) == AI_SUCCESS)
+        ret->set_metallic(metal);
 
-// #define AI_MATKEY_REFLECTIVITY "$mat.reflectivity", 0, 0
+    float roughness;
+    if((_Material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == AI_SUCCESS) || (_Material->Get(AI_MATKEY_GLOSSINESS_FACTOR, roughness) == AI_SUCCESS))
+        ret->set_roughness(roughness);
 
-// #define AI_MATKEY_REFRACTI "$mat.refracti", 0, 0
-// #define AI_MATKEY_COLOR_DIFFUSE "$clr.diffuse", 0, 0
-// #define AI_MATKEY_COLOR_AMBIENT "$clr.ambient", 0, 0
-// #define AI_MATKEY_COLOR_SPECULAR "$clr.specular", 0, 0
-// #define AI_MATKEY_COLOR_EMISSIVE "$clr.emissive", 0, 0
-// #define AI_MATKEY_COLOR_REFLECTIVE "$clr.reflective", 0, 0
-// #define AI_MATKEY_GLOBAL_BACKGROUND_IMAGE "?bg.global", 0, 0
+    float anisotropy;
+    if(_Material->Get(AI_MATKEY_ANISOTROPY_FACTOR, roughness) == AI_SUCCESS)
+    {
+        ret->set_anisotropy(anisotropy);
+        ret->set_feature(godot::SpatialMaterial::FEATURE_ANISOTROPY, true);
+    }
 
-// // ---------------------------------------------------------------------------
-// // PBR material support
-// // --------------------
-// // Properties defining PBR rendering techniques
-// #define AI_MATKEY_USE_COLOR_MAP "$mat.useColorMap", 0, 0
+    float clearcoat;
+    if(_Material->Get(AI_MATKEY_CLEARCOAT_FACTOR, clearcoat) == AI_SUCCESS)
+    {
+        if(clearcoat > 0)
+        {
+            ret->set_feature(godot::SpatialMaterial::FEATURE_CLEARCOAT, true);
+            ret->set_clearcoat(clearcoat);
 
-// // Metallic/Roughness Workflow
-// // ---------------------------
-// // Base RGBA color factor. Will be multiplied by final base color texture values if extant
-// // Note: Importers may choose to copy this into AI_MATKEY_COLOR_DIFFUSE for compatibility
-// // with renderers and formats that do not support Metallic/Roughness PBR
-// #define AI_MATKEY_BASE_COLOR "$clr.base", 0, 0
-// #define AI_MATKEY_BASE_COLOR_TEXTURE aiTextureType_BASE_COLOR, 0
-// #define AI_MATKEY_USE_METALLIC_MAP "$mat.useMetallicMap", 0, 0
-// // Metallic factor. 0.0 = Full Dielectric, 1.0 = Full Metal
-// #define AI_MATKEY_METALLIC_FACTOR "$mat.metallicFactor", 0, 0
-// #define AI_MATKEY_METALLIC_TEXTURE aiTextureType_METALNESS, 0
-// #define AI_MATKEY_USE_ROUGHNESS_MAP "$mat.useRoughnessMap", 0, 0
-// // Roughness factor. 0.0 = Perfectly Smooth, 1.0 = Completely Rough
-// #define AI_MATKEY_ROUGHNESS_FACTOR "$mat.roughnessFactor", 0, 0
-// #define AI_MATKEY_ROUGHNESS_TEXTURE aiTextureType_DIFFUSE_ROUGHNESS, 0
-// // Anisotropy factor. 0.0 = isotropic, 1.0 = anisotropy along tangent direction,
-// // -1.0 = anisotropy along bitangent direction
-// #define AI_MATKEY_ANISOTROPY_FACTOR "$mat.anisotropyFactor", 0, 0
+            if(_Material->Get(AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR, clearcoat) == AI_SUCCESS)
+                ret->set_clearcoat_gloss(clearcoat);
+        }
+    }
 
-// // Specular/Glossiness Workflow
-// // ---------------------------
-// // Diffuse/Albedo Color. Note: Pure Metals have a diffuse of {0,0,0}
-// // AI_MATKEY_COLOR_DIFFUSE
-// // Specular Color.
-// // Note: Metallic/Roughness may also have a Specular Color
-// // AI_MATKEY_COLOR_SPECULAR
-// #define AI_MATKEY_SPECULAR_FACTOR "$mat.specularFactor", 0, 0
-// // Glossiness factor. 0.0 = Completely Rough, 1.0 = Perfectly Smooth
-// #define AI_MATKEY_GLOSSINESS_FACTOR "$mat.glossinessFactor", 0, 0
+    // Albedo
+    auto texture = LoadTexture(_BasePath, _Material, aiTextureType_DIFFUSE);
+    if(texture.is_null())
+        texture = LoadTexture(_BasePath, _Material, aiTextureType_BASE_COLOR);
 
-// // Sheen
-// // -----
-// // Sheen base RGB color. Default {0,0,0}
-// #define AI_MATKEY_SHEEN_COLOR_FACTOR "$clr.sheen.factor", 0, 0
-// // Sheen Roughness Factor.
-// #define AI_MATKEY_SHEEN_ROUGHNESS_FACTOR "$mat.sheen.roughnessFactor", 0, 0
-// #define AI_MATKEY_SHEEN_COLOR_TEXTURE aiTextureType_SHEEN, 0
-// #define AI_MATKEY_SHEEN_ROUGHNESS_TEXTURE aiTextureType_SHEEN, 1
+    if(texture.is_valid())
+    {
+        if (texture->get_data()->detect_alpha() != godot::Image::ALPHA_NONE) 
+        {
+            ret->set_feature(godot::SpatialMaterial::FEATURE_TRANSPARENT, true);
+            ret->set_depth_draw_mode(godot::SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+            ret->set_cull_mode(godot::SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
+        }
 
-// // Clearcoat
-// // ---------
-// // Clearcoat layer intensity. 0.0 = none (disabled)
-// #define AI_MATKEY_CLEARCOAT_FACTOR "$mat.clearcoat.factor", 0, 0
-// #define AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR "$mat.clearcoat.roughnessFactor", 0, 0
-// #define AI_MATKEY_CLEARCOAT_TEXTURE aiTextureType_CLEARCOAT, 0
-// #define AI_MATKEY_CLEARCOAT_ROUGHNESS_TEXTURE aiTextureType_CLEARCOAT, 1
-// #define AI_MATKEY_CLEARCOAT_NORMAL_TEXTURE aiTextureType_CLEARCOAT, 2
+        ret->set_texture(godot::SpatialMaterial::TEXTURE_ALBEDO, texture);
+    }
 
-	// void set_clearcoat(const real_t clearcoat);
-	// void set_clearcoat_gloss(const real_t clearcoat_gloss);
+    // Normals
+    texture = LoadTexture(_BasePath, _Material, aiTextureType_NORMALS);
+    if(texture.is_null())
+        texture = LoadTexture(_BasePath, _Material, aiTextureType_NORMAL_CAMERA);
 
-	// void set_emission_energy(const real_t emission_energy);
-	// void set_emission_operator(const int64_t _operator);
+    if(texture.is_valid())
+    {
+        ret->set_feature(godot::SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
+        ret->set_texture(godot::SpatialMaterial::TEXTURE_NORMAL, texture);
+    }
 
-	// void set_feature(const int64_t feature, const bool enable);
+    // Emission
+    texture = LoadTexture(_BasePath, _Material, aiTextureType_EMISSION_COLOR);
+    if(texture.is_null())
+        texture = LoadTexture(_BasePath, _Material, aiTextureType_EMISSIVE);
 
-	// void set_flag(const int64_t flag, const bool enable);
+    if(texture.is_valid())
+    {
+        ret->set_feature(godot::SpatialMaterial::Feature::FEATURE_EMISSION, true);
+        ret->set_texture(godot::SpatialMaterial::TEXTURE_EMISSION, texture);
+    }
 
-	// void set_metallic(const real_t metallic);
-	// void set_metallic_texture_channel(const int64_t channel);
+    // Metalness
+    texture = LoadTexture(_BasePath, _Material, aiTextureType_METALNESS);
+    if(texture.is_null())
+        texture = LoadTexture(_BasePath, _Material, aiTextureType_SPECULAR);
 
-	// void set_refraction(const real_t refraction);
-	// void set_refraction_texture_channel(const int64_t channel);
+    if(texture.is_valid())
+        ret->set_texture(godot::SpatialMaterial::TEXTURE_METALLIC, texture);
 
-	// void set_rim(const real_t rim);
-	// void set_rim_tint(const real_t rim_tint);
+    // Roughness
+    texture = LoadTexture(_BasePath, _Material, aiTextureType_DIFFUSE_ROUGHNESS);
+    if(texture.is_valid())
+        ret->set_texture(godot::SpatialMaterial::TEXTURE_ROUGHNESS, texture);
 
-	// void set_roughness(const real_t roughness);
-	// void set_roughness_texture_channel(const int64_t channel);
-
-	// void set_specular(const real_t specular);
-	// void set_specular_mode(const int64_t specular_mode);
-
-	// void set_subsurface_scattering_strength(const real_t strength);
-
-	// void set_texture(const int64_t param, const Ref<Texture> texture);
-
-	// void set_transmission(const Color transmission);
-
-	// void set_uv1_offset(const Vector3 offset);
-	// void set_uv1_scale(const Vector3 scale);
-	// void set_uv1_triplanar_blend_sharpness(const real_t sharpness);
-
-	// void set_uv2_offset(const Vector3 offset);
-	// void set_uv2_scale(const Vector3 scale);
-	// void set_uv2_triplanar_blend_sharpness(const real_t sharpness);
+    // AO
+    texture = LoadTexture(_BasePath, _Material, aiTextureType_AMBIENT_OCCLUSION);
+    if(texture.is_valid())
+    {
+        ret->set_feature(godot::SpatialMaterial::Feature::FEATURE_AMBIENT_OCCLUSION, true);
+        ret->set_texture(godot::SpatialMaterial::TEXTURE_AMBIENT_OCCLUSION, texture);
+    }
 
     return ret;
 }
 
-
-
-	// void set_ao_light_affect(const real_t amount);
-	// void set_ao_texture_channel(const int64_t channel);
-
-    // void set_depth_deep_parallax(const bool enable);
-	// void set_depth_deep_parallax_flip_binormal(const bool flip);
-	// void set_depth_deep_parallax_flip_tangent(const bool flip);
-	// void set_depth_deep_parallax_max_layers(const int64_t layer);
-	// void set_depth_deep_parallax_min_layers(const int64_t layer);
-	// void set_depth_draw_mode(const int64_t depth_draw_mode);
-	// void set_depth_scale(const real_t depth_scale);
-
-	// void set_detail_blend_mode(const int64_t detail_blend_mode);
-	// void set_detail_uv(const int64_t detail_uv);
-	// void set_diffuse_mode(const int64_t diffuse_mode);
-	// void set_distance_fade(const int64_t mode);
-	// void set_distance_fade_max_distance(const real_t distance);
-	// void set_distance_fade_min_distance(const real_t distance);
-
-	// void set_grow(const real_t amount);
-	// void set_grow_enabled(const bool enable);
-	// void set_line_width(const real_t line_width);
-
-	// void set_normal_scale(const real_t normal_scale);
-	// void set_particles_anim_h_frames(const int64_t frames);
-	// void set_particles_anim_loop(const bool loop);
-	// void set_particles_anim_v_frames(const int64_t frames);
-	// void set_point_size(const real_t point_size);
-	// void set_proximity_fade(const bool enabled);
-	// void set_proximity_fade_distance(const real_t distance);
-
-godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, godot::Spatial *_Parent, const aiScene *_Scene, const aiNode *_Node) const
+godot::Spatial *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Spatial *_Owner, godot::Spatial *_Parent, const aiScene *_Scene, const aiNode *_Node)
 {
     godot::Spatial *ret = nullptr;
 
@@ -249,7 +248,8 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, godot::Spatial 
                         godot::Vector3 tangent(aiTangents.x, aiTangents.y, aiTangents.z);
                         auto aiBitangent = mesh->mBitangents[j];
                         godot::Vector3 bitangent(aiBitangent.x, aiBitangent.y, aiBitangent.z);
-                        float d = ((godot::PoolVector3Array)data[godot::ArrayMesh::ARRAY_NORMAL])[j].cross(tangent).dot(bitangent) > 0.f ? 1.f : -1.f;
+
+                        float d = normals[j].cross(tangent).dot(bitangent) > 0.f ? 1.f : -1.f;
                         tangents.set(j * 4, tangent.x);
                         tangents.set(j * 4 + 1, tangent.y);
                         tangents.set(j * 4 + 2, tangent.z);
@@ -294,7 +294,7 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, godot::Spatial 
             godot::Ref<godot::SpatialMaterial> material;
             if(!materials.has(mesh->mMaterialIndex))
             {
-                material = aiMaterialToGodot(_Scene->mMaterials[mesh->mMaterialIndex]);
+                material = aiMaterialToGodot(_BasePath, _Scene->mMaterials[mesh->mMaterialIndex]);
                 materials[mesh->mMaterialIndex] = material;
             }
             else
@@ -328,15 +328,17 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::Spatial *_Owner, godot::Spatial 
     // Go through all children
     for(int i = 0; i < _Node->mNumChildren; i++)
     {
-        godot::Spatial *child = LoadTree(_Owner, ret, _Scene, _Node->mChildren[i]);
+        godot::Spatial *child = LoadTree(_BasePath, _Owner, ret, _Scene, _Node->mChildren[i]);
         child->set_owner(_Owner);
     }
 
     return ret;
 }
 
-godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File) const
+godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File)
 {
+    m_Errors.clear();
+
     Assimp::Importer importer;
     importer.SetIOHandler(new GDAssimpIOSystem());
     importer.SetPropertyBool(AI_CONFIG_PP_FD_REMOVE, true);
@@ -357,11 +359,16 @@ godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File) const
                                             aiProcess_OptimizeMeshes);
     if(!scene)
     {
-        ERR_PRINT(importer.GetErrorString());
+        godot::Ref<GDError> err = GDError::_new();
+        err->ErrorCode = (int)godot::Error::ERR_CANT_OPEN;
+        err->Message = _File + " Error: " + importer.GetErrorString();
+        m_Errors.append(err);
+
+        // ERR_PRINT(importer.GetErrorString());
         return nullptr;
     }
 
     godot::Ref<godot::PackedScene> ret = godot::PackedScene::_new();
-    ret->pack(LoadTree(nullptr, nullptr, scene, scene->mRootNode));
+    ret->pack(LoadTree(_File.get_base_dir(), nullptr, nullptr, scene, scene->mRootNode));
     return ret;
 }
