@@ -77,7 +77,7 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
     }
 
     float opacity;
-    if(_Material->Get(AI_MATKEY_OPACITY, color) == AI_SUCCESS)
+    if(_Material->Get(AI_MATKEY_OPACITY, opacity) == AI_SUCCESS)
     {
         if(opacity != 1.0)
         {
@@ -191,6 +191,12 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
         ret->set_texture(godot::SpatialMaterial::TEXTURE_AMBIENT_OCCLUSION, texture);
     }
 
+    ret->set_uv1_scale(godot::Vector3(1, -1, 1));
+    ret->set_uv1_offset(godot::Vector3(0, 1, 0));
+
+    ret->set_uv2_scale(godot::Vector3(1, -1, 1));
+    ret->set_uv2_offset(godot::Vector3(0, 1, 0));
+
     return ret;
 }
 
@@ -276,7 +282,7 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Spatial
                 {
                     godot::PoolVector2Array uvs;
                     uvs.resize(mesh->mNumVertices);
-                    for (size_t j = 0; j < mesh->mNumVertices; i++)
+                    for (size_t j = 0; j < mesh->mNumVertices; j++)
                     {
                         auto vec = mesh->mTextureCoords[i][j];
                         uvs.set(j, godot::Vector2(vec.x, vec.y));
