@@ -5,15 +5,14 @@
 
 GDAssimpIOStream::GDAssimpIOStream(const char* _File, const std::string& _Mode) : Assimp::IOStream() 
 {
-    m_File.instance();
-    int64_t openMode;
+    godot::FileAccess::ModeFlags openMode;
 
     if(_Mode == "wb" || _Mode == "w" || _Mode == "wt")
-        openMode = godot::File::WRITE;
+        openMode = godot::FileAccess::WRITE;
     else
-        openMode = godot::File::READ;
+        openMode = godot::FileAccess::READ;
 
-    m_File->open(_File, openMode);
+    m_File = godot::FileAccess::open(_File, openMode);
 }
 
 size_t GDAssimpIOStream::Read(void* pvBuffer, size_t pSize, size_t pCount)
@@ -21,8 +20,8 @@ size_t GDAssimpIOStream::Read(void* pvBuffer, size_t pSize, size_t pCount)
     if(m_File.is_null() || (Tell() + (pSize * pCount) > FileSize()))
         return 0;
 
-    godot::PoolByteArray buffer = m_File->get_buffer(pSize * pCount);
-    memcpy(pvBuffer, buffer.read().ptr(), buffer.size());
+    godot::PackedByteArray buffer = m_File->get_buffer(pSize * pCount);
+    memcpy(pvBuffer, buffer.ptr(), buffer.size());
     return buffer.size() / pSize;
 }
 
@@ -31,9 +30,9 @@ size_t GDAssimpIOStream::Write(const void* pvBuffer, size_t pSize, size_t pCount
     if(m_File.is_null())
         return 0;
 
-    godot::PoolByteArray buffer;
+    godot::PackedByteArray buffer;
     buffer.resize(pSize * pCount);
-    memcpy(buffer.write().ptr(), pvBuffer, buffer.size());
+    memcpy(buffer.ptrw(), pvBuffer, buffer.size());
 
     m_File->store_buffer(buffer);
     return buffer.size() / pSize;
@@ -67,7 +66,7 @@ size_t GDAssimpIOStream::FileSize() const
     if(m_File.is_null())
         return 0;
 
-    return m_File->get_len();
+    return m_File->get_length();
 }
 
 void GDAssimpIOStream::Flush()

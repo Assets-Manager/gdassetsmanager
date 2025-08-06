@@ -3,20 +3,21 @@
 #ifndef GDASSIMP_HPP
 #define GDASSIMP_HPP
 
-#include <Godot.hpp>
-#include <Reference.hpp>
-#include <PackedScene.hpp>
-#include <Spatial.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
+#include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/image_texture.hpp>
+#include <godot_cpp/classes/packed_scene.hpp>
+#include <godot_cpp/godot.hpp>
+#include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/ref_counted.hpp>
+
 #include <assimp/scene.h>
-#include <SpatialMaterial.hpp>
 
-class GDAssimpLoader : public godot::Reference
+class GDAssimpLoader : public godot::RefCounted
 {
-    GODOT_CLASS(GDAssimpLoader, godot::Reference);
+    GDCLASS(GDAssimpLoader, godot::RefCounted);
     public:
-        void _init() { }
-
-        static void _register_methods();
+        static void _bind_methods();
 
         /**
          * @brief Loads a 3D model file.
@@ -32,11 +33,11 @@ class GDAssimpLoader : public godot::Reference
     private:
         godot::Array m_Errors;
 
-        godot::Ref<godot::Texture> LoadTexture(godot::String _BasePath, const aiMaterial *_Material, aiTextureType _Type);
+        godot::Ref<godot::ImageTexture> LoadTexture(godot::String _BasePath, const aiMaterial *_Material, aiTextureType _Type);
 
-        godot::Spatial *LoadTree(godot::String _BasePath, godot::Spatial *_Owner, godot::Spatial *_Parent, const aiScene *_Scene, const aiNode *_Node);
+        godot::Node3D *LoadTree(godot::String _BasePath, godot::Node3D *_Owner, godot::Node3D *_Parent, const aiScene *_Scene, const aiNode *_Node);
 
-        godot::Ref<godot::SpatialMaterial> aiMaterialToGodot(godot::String _BasePath, const aiMaterial *_Material);
+        godot::Ref<godot::StandardMaterial3D> aiMaterialToGodot(godot::String _BasePath, const aiMaterial *_Material);
 };
 
 #endif

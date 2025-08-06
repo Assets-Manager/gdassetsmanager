@@ -3,21 +3,17 @@
 #ifndef GDFILEWATCHER_HPP
 #define GDFILEWATCHER_HPP
 
-#include <Godot.hpp>
-#include <Reference.hpp>
 #include <FileWatch.hpp>
-#include <String.hpp>
-#include <string>
+#include <godot_cpp/godot.hpp>
+#include <godot_cpp/classes/ref_counted.hpp>
 
-class GDFilewatcher : public godot::Reference
+class GDFilewatcher : public godot::RefCounted
 {
-    GODOT_CLASS(GDFilewatcher, godot::Reference);
+    GDCLASS(GDFilewatcher, godot::RefCounted);
     public:
         GDFilewatcher() : m_Watcher(nullptr) {}
 
-        void _init() { }
-
-        static void _register_methods();
+        static void _bind_methods();
 
         /**
          * @brief Opens a directory to observe.

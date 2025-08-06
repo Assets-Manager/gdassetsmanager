@@ -5,9 +5,9 @@
 
 #include <assimp/IOStream.hpp>
 #include <assimp/IOSystem.hpp>
-#include <Godot.hpp>
-#include <File.hpp>
-#include <Reference.hpp>
+#include <godot_cpp/godot.hpp>
+#include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/ref_counted.hpp>
 
 class GDAssimpIOSystem;
 class GDAssimpIOStream : public Assimp::IOStream
@@ -26,7 +26,7 @@ class GDAssimpIOStream : public Assimp::IOStream
         GDAssimpIOStream(const char* _File, const std::string& _Mode);
 
     private:
-        godot::Ref<godot::File> m_File;
+        godot::Ref<godot::FileAccess> m_File;
 };
 
 class GDAssimpIOSystem : public Assimp::IOSystem
@@ -36,8 +36,7 @@ class GDAssimpIOSystem : public Assimp::IOSystem
 
         bool Exists(const char* _File) const override
         {
-            godot::Ref<godot::File> file = godot::File::_new();
-            return file->file_exists(_File);
+            return godot::FileAccess::file_exists(_File);
         }
 
         char getOsSeparator() const override

@@ -1,46 +1,49 @@
 // License
 
-#include <MeshInstance.hpp>
-#include <ArrayMesh.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
+#include <godot_cpp/variant/packed_int32_array.hpp>
+#include <godot_cpp/classes/shader_material.hpp>
+#include <godot_cpp/core/memory.hpp>
+#include <godot_cpp/classes/image.hpp>
 #include <GDAssimpLoader.hpp>
 #include <GDAssimpIOStream.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
-#include <Image.hpp>
-#include <ImageTexture.hpp>
 #include <GDError.hpp>
-#include <Variant.hpp>
 
-void GDAssimpLoader::_register_methods()
+void GDAssimpLoader::_bind_methods()
 {
-    godot::register_method("load", &GDAssimpLoader::Load);
-    godot::register_method("get_errors", &GDAssimpLoader::GetErrors);
+    godot::ClassDB::bind_method(godot::D_METHOD("load"), &GDAssimpLoader::Load);
+    godot::ClassDB::bind_method(godot::D_METHOD("get_errors"), &GDAssimpLoader::GetErrors);
 }
 
-godot::Ref<godot::Texture> GDAssimpLoader::LoadTexture(godot::String _BasePath, const aiMaterial *_Material, aiTextureType _Type)
+godot::Ref<godot::ImageTexture> GDAssimpLoader::LoadTexture(godot::String _BasePath, const aiMaterial *_Material, aiTextureType _Type)
 {
     aiString path;
     aiTextureMapMode mappingMode;
     if(_Material->GetTexture(_Type, 0, &path, nullptr, nullptr, nullptr, nullptr, &mappingMode) == AI_SUCCESS)
     {
-        godot::Ref<godot::Image> img = godot::Image::_new();
-        auto gdpath = _BasePath.plus_file(path.C_Str());
+        godot::Ref<godot::Image> img = memnew(godot::Image);
+        auto gdpath = _BasePath.path_join(path.C_Str());
         if(img->load(gdpath) == godot::Error::OK)
         {
-            godot::Ref<godot::ImageTexture> texture = godot::ImageTexture::_new();
-            int32_t flags = godot::Texture::FLAGS_DEFAULT;
+            godot::Ref<godot::ImageTexture> texture = memnew(godot::ImageTexture);
+            // int32_t flags = godot::Texture::FLAGS_DEFAULT;
 
-            if (mappingMode == aiTextureMapMode_Clamp) 
-                flags = flags & ~godot::Texture::FLAG_REPEAT;
-            else if (mappingMode == aiTextureMapMode_Mirror)
-                flags = flags | godot::Texture::FLAG_MIRRORED_REPEAT;
+            // if (mappingMode == aiTextureMapMode_Clamp) 
+            //     flags = flags & ~godot::Texture::FLAG_REPEAT;
+            // else if (mappingMode == aiTextureMapMode_Mirror)
+            //     flags = flags | godot::Texture::FLAG_MIRRORED_REPEAT;
 
-            texture->create_from_image(img, flags);
+            // texture->create_from_image(img, flags);
+            texture->create_from_image(img);
             return texture;
         }
         else
         {
-            godot::Ref<GDError> err = GDError::_new();
+            godot::Ref<GDError> err = memnew(GDError);
             err->ErrorCode = (int)godot::Error::ERR_FILE_CANT_OPEN;
             err->Message = gdpath;
             m_Errors.append(err);
@@ -50,13 +53,13 @@ godot::Ref<godot::Texture> GDAssimpLoader::LoadTexture(godot::String _BasePath, 
     return nullptr;
 }
 
-godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::String _BasePath, const aiMaterial *_Material)
+godot::Ref<godot::StandardMaterial3D> GDAssimpLoader::aiMaterialToGodot(godot::String _BasePath, const aiMaterial *_Material)
 {
-    godot::Ref<godot::SpatialMaterial> ret = godot::SpatialMaterial::_new();
+    godot::Ref<godot::StandardMaterial3D> ret = memnew(godot::StandardMaterial3D);
 
     int twosided = 0;
     if(_Material->Get(AI_MATKEY_TWOSIDED, twosided) == AI_SUCCESS)
-        ret->set_cull_mode(twosided ? godot::SpatialMaterial::CULL_DISABLED : godot::SpatialMaterial::CULL_BACK);
+        ret->set_cull_mode(twosided ? godot::StandardMaterial3D::CULL_DISABLED : godot::StandardMaterial3D::CULL_BACK);
 
     aiString name;
     if(_Material->Get(AI_MATKEY_NAME, name) == AI_SUCCESS)
@@ -72,8 +75,8 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
     float emissive;
     if(_Material->Get(AI_MATKEY_EMISSIVE_INTENSITY, emissive) == AI_SUCCESS)
     {
-        ret->set_emission_energy(emissive);
-        ret->set_feature(godot::SpatialMaterial::FEATURE_EMISSION, true);
+        ret->set_emission_intensity(emissive);
+        ret->set_feature(godot::StandardMaterial3D::FEATURE_EMISSION, true);
     }
 
     float opacity;
@@ -84,9 +87,8 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
             godot::Color c = ret->get_albedo();
             c.a = opacity;
             ret->set_albedo(c);
-            ret->set_feature(godot::SpatialMaterial::FEATURE_TRANSPARENT, true);
-            ret->set_depth_draw_mode(godot::SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-            ret->set_cull_mode(godot::SpatialMaterial::CULL_DISABLED);
+            ret->set_transparency(godot::StandardMaterial3D::TRANSPARENCY_ALPHA_DEPTH_PRE_PASS);
+            ret->set_cull_mode(godot::StandardMaterial3D::CULL_DISABLED);
         }
     }
 
@@ -99,7 +101,7 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
     {
         switch (blendMode)
         {
-            case aiBlendMode::aiBlendMode_Additive: ret->set_blend_mode(godot::SpatialMaterial::BLEND_MODE_ADD); break;
+            case aiBlendMode::aiBlendMode_Additive: ret->set_blend_mode(godot::StandardMaterial3D::BLEND_MODE_ADD); break;
         }
     }
 
@@ -115,7 +117,7 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
     if(_Material->Get(AI_MATKEY_ANISOTROPY_FACTOR, roughness) == AI_SUCCESS)
     {
         ret->set_anisotropy(anisotropy);
-        ret->set_feature(godot::SpatialMaterial::FEATURE_ANISOTROPY, true);
+        ret->set_feature(godot::StandardMaterial3D::FEATURE_ANISOTROPY, true);
     }
 
     float clearcoat;
@@ -123,11 +125,11 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
     {
         if(clearcoat > 0)
         {
-            ret->set_feature(godot::SpatialMaterial::FEATURE_CLEARCOAT, true);
+            ret->set_feature(godot::StandardMaterial3D::FEATURE_CLEARCOAT, true);
             ret->set_clearcoat(clearcoat);
 
             if(_Material->Get(AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR, clearcoat) == AI_SUCCESS)
-                ret->set_clearcoat_gloss(clearcoat);
+                ret->set_clearcoat_roughness(clearcoat);
         }
     }
 
@@ -138,14 +140,13 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
 
     if(texture.is_valid())
     {
-        if (texture->get_data()->detect_alpha() != godot::Image::ALPHA_NONE) 
+        if (texture->get_image()->detect_alpha() != godot::Image::ALPHA_NONE) 
         {
-            ret->set_feature(godot::SpatialMaterial::FEATURE_TRANSPARENT, true);
-            ret->set_depth_draw_mode(godot::SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-            ret->set_cull_mode(godot::SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
+            ret->set_transparency(godot::StandardMaterial3D::TRANSPARENCY_ALPHA_DEPTH_PRE_PASS);
+            ret->set_cull_mode(godot::StandardMaterial3D::CULL_DISABLED); // since you can see both sides in transparent mode
         }
 
-        ret->set_texture(godot::SpatialMaterial::TEXTURE_ALBEDO, texture);
+        ret->set_texture(godot::StandardMaterial3D::TEXTURE_ALBEDO, texture);
     }
 
     // Normals
@@ -155,8 +156,8 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
 
     if(texture.is_valid())
     {
-        ret->set_feature(godot::SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
-        ret->set_texture(godot::SpatialMaterial::TEXTURE_NORMAL, texture);
+        ret->set_feature(godot::StandardMaterial3D::Feature::FEATURE_NORMAL_MAPPING, true);
+        ret->set_texture(godot::StandardMaterial3D::TEXTURE_NORMAL, texture);
     }
 
     // Emission
@@ -166,8 +167,8 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
 
     if(texture.is_valid())
     {
-        ret->set_feature(godot::SpatialMaterial::Feature::FEATURE_EMISSION, true);
-        ret->set_texture(godot::SpatialMaterial::TEXTURE_EMISSION, texture);
+        ret->set_feature(godot::StandardMaterial3D::Feature::FEATURE_EMISSION, true);
+        ret->set_texture(godot::StandardMaterial3D::TEXTURE_EMISSION, texture);
     }
 
     // Metalness
@@ -176,19 +177,19 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
         texture = LoadTexture(_BasePath, _Material, aiTextureType_SPECULAR);
 
     if(texture.is_valid())
-        ret->set_texture(godot::SpatialMaterial::TEXTURE_METALLIC, texture);
+        ret->set_texture(godot::StandardMaterial3D::TEXTURE_METALLIC, texture);
 
     // Roughness
     texture = LoadTexture(_BasePath, _Material, aiTextureType_DIFFUSE_ROUGHNESS);
     if(texture.is_valid())
-        ret->set_texture(godot::SpatialMaterial::TEXTURE_ROUGHNESS, texture);
+        ret->set_texture(godot::StandardMaterial3D::TEXTURE_ROUGHNESS, texture);
 
     // AO
     texture = LoadTexture(_BasePath, _Material, aiTextureType_AMBIENT_OCCLUSION);
     if(texture.is_valid())
     {
-        ret->set_feature(godot::SpatialMaterial::Feature::FEATURE_AMBIENT_OCCLUSION, true);
-        ret->set_texture(godot::SpatialMaterial::TEXTURE_AMBIENT_OCCLUSION, texture);
+        ret->set_feature(godot::StandardMaterial3D::Feature::FEATURE_AMBIENT_OCCLUSION, true);
+        ret->set_texture(godot::StandardMaterial3D::TEXTURE_AMBIENT_OCCLUSION, texture);
     }
 
     ret->set_uv1_scale(godot::Vector3(1, -1, 1));
@@ -200,29 +201,29 @@ godot::Ref<godot::SpatialMaterial> GDAssimpLoader::aiMaterialToGodot(godot::Stri
     return ret;
 }
 
-godot::Spatial *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Spatial *_Owner, godot::Spatial *_Parent, const aiScene *_Scene, const aiNode *_Node)
+godot::Node3D *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Node3D *_Owner, godot::Node3D *_Parent, const aiScene *_Scene, const aiNode *_Node)
 {
-    godot::Spatial *ret = nullptr;
+    godot::Node3D *ret = nullptr;
 
     // Checks for meshes
     if(!_Node->mNumMeshes)
-        ret = godot::Spatial::_new();
+        ret = memnew(godot::Node3D);
     else
     {
-        godot::MeshInstance *instance = godot::MeshInstance::_new();
-        godot::Ref<godot::ArrayMesh> arrayMesh = godot::ArrayMesh::_new();
+        godot::MeshInstance3D *instance = memnew(godot::MeshInstance3D);
+        godot::Ref<godot::ArrayMesh> arrayMesh = memnew(godot::ArrayMesh);
         godot::Dictionary materials;
 
         for (int i = 0; i < _Node->mNumMeshes; i++)
         {
             const aiMesh *mesh = _Scene->mMeshes[_Node->mMeshes[i]];
 
-            godot::PoolVector3Array vertices;
-            godot::PoolIntArray indices;
+            godot::PackedVector3Array vertices;
+            godot::PackedInt32Array indices;
 
             vertices.resize(mesh->mNumVertices);
 
-            memcpy(vertices.write().ptr(), mesh->mVertices, sizeof(ai_real) * 3 * mesh->mNumVertices);
+            memcpy(vertices.ptrw(), mesh->mVertices, sizeof(ai_real) * 3 * mesh->mNumVertices);
 
             for (size_t f = 0; f < mesh->mNumFaces; f++)
             {
@@ -239,13 +240,13 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Spatial
             // Normals are optional
             if(mesh->mNormals)
             {
-                godot::PoolVector3Array normals;
+                godot::PackedVector3Array normals;
                 normals.resize(mesh->mNumVertices);
-                memcpy(normals.write().ptr(), mesh->mNormals, sizeof(ai_real) * 3 * mesh->mNumVertices);
+                memcpy(normals.ptrw(), mesh->mNormals, sizeof(ai_real) * 3 * mesh->mNumVertices);
                 data[godot::ArrayMesh::ARRAY_NORMAL] = normals;
 
                 if(mesh->HasTangentsAndBitangents()) {
-                    godot::PoolRealArray tangents;
+                    godot::PackedRealArray tangents;
                     tangents.resize(mesh->mNumVertices * 4);
 
                     for (size_t j = 0; j < mesh->mNumVertices; j++)
@@ -269,9 +270,9 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Spatial
             // Since Godot only supports one color "channel", only the first one of assimp will be used.
             if(mesh->mColors[0])
             {
-                godot::PoolColorArray colors;
+                godot::PackedColorArray colors;
                 colors.resize(mesh->mNumVertices);
-                memcpy(colors.write().ptr(), mesh->mColors[0], sizeof(ai_real) * 4 * mesh->mNumVertices);
+                memcpy(colors.ptrw(), mesh->mColors[0], sizeof(ai_real) * 4 * mesh->mNumVertices);
                 data[godot::ArrayMesh::ARRAY_COLOR] = colors;
             }
 
@@ -280,7 +281,7 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Spatial
             {
                 if(mesh->mTextureCoords[i])
                 {
-                    godot::PoolVector2Array uvs;
+                    godot::PackedVector2Array uvs;
                     uvs.resize(mesh->mNumVertices);
                     for (size_t j = 0; j < mesh->mNumVertices; j++)
                     {
@@ -297,7 +298,7 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Spatial
 
             arrayMesh->add_surface_from_arrays(godot::ArrayMesh::PRIMITIVE_TRIANGLES, data);
 
-            godot::Ref<godot::SpatialMaterial> material;
+            godot::Ref<godot::StandardMaterial3D> material;
             if(!materials.has(mesh->mMaterialIndex))
             {
                 material = aiMaterialToGodot(_BasePath, _Scene->mMaterials[mesh->mMaterialIndex]);
@@ -316,7 +317,7 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Spatial
     aiVector3D position, scale, rotation;
     _Node->mTransformation.Decompose(scale, rotation, position);
 
-    ret->set_translation(godot::Vector3(position.x, position.y, position.z));
+    ret->set_position(godot::Vector3(position.x, position.y, position.z));
     ret->set_scale(godot::Vector3(scale.x, scale.y, scale.z));
     ret->set_rotation(godot::Vector3(rotation.x, rotation.y, rotation.z));
 
@@ -334,7 +335,7 @@ godot::Spatial *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Spatial
     // Go through all children
     for(int i = 0; i < _Node->mNumChildren; i++)
     {
-        godot::Spatial *child = LoadTree(_BasePath, _Owner, ret, _Scene, _Node->mChildren[i]);
+        godot::Node3D *child = LoadTree(_BasePath, _Owner, ret, _Scene, _Node->mChildren[i]);
         child->set_owner(_Owner);
     }
 
@@ -365,7 +366,7 @@ godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File)
                                             aiProcess_OptimizeMeshes);
     if(!scene)
     {
-        godot::Ref<GDError> err = GDError::_new();
+        godot::Ref<GDError> err = memnew(GDError);
         err->ErrorCode = (int)godot::Error::ERR_CANT_OPEN;
         err->Message = _File + " Error: " + importer.GetErrorString();
         m_Errors.append(err);
@@ -374,7 +375,7 @@ godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File)
         return nullptr;
     }
 
-    godot::Ref<godot::PackedScene> ret = godot::PackedScene::_new();
+    godot::Ref<godot::PackedScene> ret = memnew(godot::PackedScene);
     ret->pack(LoadTree(_File.get_base_dir(), nullptr, nullptr, scene, scene->mRootNode));
     return ret;
 }

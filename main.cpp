@@ -23,33 +23,70 @@
  */
 
 #include <GDAssimpLoader.hpp>
-#include <GDNativeFileDialog.hpp>
 #include <GDAudioWaveRenderer.hpp>
 #include <GDFilewatcher.hpp>
 #include <GDError.hpp>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <gdextension_interface.h>
+#include <godot_cpp/core/defs.hpp>
+#include <godot_cpp/godot.hpp>
 
-void GDN_EXPORT godot_gdnative_init(godot_gdnative_init_options *o) {
-    godot::Godot::gdnative_init(o);
+using namespace godot;
+
+void initialize_assets_manager_module(ModuleInitializationLevel p_level) 
+{
+	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE)
+		return;
+
+	// GDREGISTER_RUNTIME_CLASS(GDError);
+    // GDREGISTER_RUNTIME_CLASS(GDFilewatcher);
+    // GDREGISTER_RUNTIME_CLASS(GDAudioWaveRenderer);
+    // GDREGISTER_RUNTIME_CLASS(GDAssimpLoader);
 }
 
-void GDN_EXPORT godot_gdnative_terminate(godot_gdnative_terminate_options *o) {
-    godot::Godot::gdnative_terminate(o);
+void uninitialize_assets_manager_module(ModuleInitializationLevel p_level) 
+{
+	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE)
+		return;
 }
 
-void GDN_EXPORT godot_nativescript_init(void *handle) {
-    godot::Godot::nativescript_init(handle);
+extern "C" 
+{
+    // Initialization.
+    GDExtensionBool GDE_EXPORT assets_manager_library_init(GDExtensionInterfaceGetProcAddress p_get_proc_address, const GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) 
+    {
+        godot::GDExtensionBinding::InitObject init_obj(p_get_proc_address, p_library, r_initialization);
 
-    godot::register_class<GDAssimpLoader>();
-    godot::register_class<GDNativeFileDialog>();
-    godot::register_class<GDAudioWaveRenderer>();
-    godot::register_class<GDFilewatcher>();
-    godot::register_class<GDError>();
+        init_obj.register_initializer(initialize_assets_manager_module);
+        init_obj.register_terminator(uninitialize_assets_manager_module);
+        init_obj.set_minimum_library_initialization_level(MODULE_INITIALIZATION_LEVEL_SCENE);
+
+        return init_obj.init();
+    }
 }
 
-#ifdef __cplusplus
-}
-#endif
+// #ifdef __cplusplus
+// extern "C" {
+// #endif
+
+// void GDN_EXPORT godot_gdnative_init(godot_gdnative_init_options *o) {
+//     godot::Godot::gdnative_init(o);
+// }
+
+// void GDN_EXPORT godot_gdnative_terminate(godot_gdnative_terminate_options *o) {
+//     godot::Godot::gdnative_terminate(o);
+// }
+
+// void GDN_EXPORT godot_nativescript_init(void *handle) {
+//     godot::Godot::nativescript_init(handle);
+
+//     godot::register_class<GDAssimpLoader>();
+//     godot::register_class<GDNativeFileDialog>();
+//     godot::register_class<GDAudioWaveRenderer>();
+//     godot::register_class<GDFilewatcher>();
+//     godot::register_class<GDError>();
+// }
+
+// #ifdef __cplusplus
+// }
+// #endif

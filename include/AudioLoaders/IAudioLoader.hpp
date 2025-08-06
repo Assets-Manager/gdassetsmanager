@@ -3,8 +3,7 @@
 #ifndef IAUDIOLOADER_HPP
 #define IAUDIOLOADER_HPP
 
-#include <PoolArrays.hpp>
-#include <String.hpp>
+#include <godot_cpp/variant/variant.hpp>
 
 class IAudioLoader
 {
@@ -37,15 +36,16 @@ class IAudioLoader
         /**
          * @return Returns all audio samples.
          */
-        const godot::PoolRealArray &GetPCMFloatFrames() const
+        const godot::PackedRealArray &GetPCMFloatFrames() const
         {
             return m_PCMFloatFrames;
         }
 
+        virtual ~IAudioLoader() = default;
     protected:
         int m_SampleRate;
         int m_ChannelCount;
-        godot::PoolRealArray m_PCMFloatFrames;
+        godot::PackedRealArray m_PCMFloatFrames;
 };
 
 #endif

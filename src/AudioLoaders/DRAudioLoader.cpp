@@ -1,5 +1,6 @@
 // License
 
+#include <godot_cpp/variant/packed_byte_array.hpp>
 #include <AudioLoaders/DRAudioLoader.hpp>
 #include <cstring>
 
@@ -17,11 +18,11 @@ int CDRAudioLoader::dr_seek_proc(void* _UserData, int _Offset, int _Origin)
 
 size_t CDRAudioLoader::Read(void *_BufferOut, size_t _BytesToRead)
 {
-    if(m_File.is_null() || (m_File->get_position() + _BytesToRead > m_File->get_len()))
+    if(m_File.is_null() || (m_File->get_position() + _BytesToRead > m_File->get_length()))
         return 0;
 
-    godot::PoolByteArray data = m_File->get_buffer(_BytesToRead);
-    memcpy(_BufferOut, data.read().ptr(), data.size());
+    godot::PackedByteArray data = m_File->get_buffer(_BytesToRead);
+    memcpy(_BufferOut, data.ptr(), data.size());
     return data.size();
 }
 

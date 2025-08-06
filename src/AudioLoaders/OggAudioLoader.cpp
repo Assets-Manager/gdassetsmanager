@@ -1,7 +1,7 @@
 // License
 
 #include <AudioLoaders/OggAudioLoader.hpp>
-#include <File.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 
 #define STB_VORBIS_NO_PUSHDATA_API
 #define STB_VORBIS_NO_STDIO
@@ -9,14 +9,14 @@
 
 bool COggAudioLoader::Load(const godot::String &_Path)
 {
-    godot::Ref<godot::File> file = godot::File::_new();
-    if(file->open(_Path, godot::File::READ) != godot::Error::OK)
+    godot::Ref<godot::FileAccess> file = godot::FileAccess::open(_Path, godot::FileAccess::READ);
+    if(!file.is_valid())
         return false;
 
-    godot::PoolByteArray data = file->get_buffer(file->get_len());
+    godot::PackedByteArray data = file->get_buffer(file->get_length());
 
     int error;
-    stb_vorbis *vorbis = stb_vorbis_open_memory(data.read().ptr(), data.size(), &error, nullptr);
+    stb_vorbis *vorbis = stb_vorbis_open_memory(data.ptr(), data.size(), &error, nullptr);
     if(!vorbis)
         return false;
 
@@ -25,7 +25,7 @@ bool COggAudioLoader::Load(const godot::String &_Path)
     m_SampleRate = info.sample_rate;
 
     m_PCMFloatFrames.resize(stb_vorbis_stream_length_in_samples(vorbis) * m_ChannelCount);
-    stb_vorbis_get_samples_float_interleaved(vorbis, m_ChannelCount, m_PCMFloatFrames.write().ptr(), m_PCMFloatFrames.size());
+    stb_vorbis_get_samples_float_interleaved(vorbis, m_ChannelCount, m_PCMFloatFrames.ptrw(), m_PCMFloatFrames.size());
 
     stb_vorbis_close(vorbis);
     return true;

@@ -1,17 +1,18 @@
 // License
 
+#include "godot_cpp/core/memory.hpp"
+#include <godot_cpp/variant/variant.hpp>
 #include <GDAudioWaveRenderer.hpp>
-#include <Image.hpp>
-#include <ImageTexture.hpp>
-#include <algorithm>
+#include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/image_texture.hpp>
 #include <AudioLoaders/WavAudioLoader.hpp>
 #include <AudioLoaders/Mp3AudioLoader.hpp>
 #include <AudioLoaders/FlacAudioLoader.hpp>
 #include <AudioLoaders/OggAudioLoader.hpp>
 
-void GDAudioWaveRenderer::_register_methods()
+void GDAudioWaveRenderer::_bind_methods()
 {
-    godot::register_method("render_audio_wave", &GDAudioWaveRenderer::RenderAudioWave);
+    godot::ClassDB::bind_method(godot::D_METHOD("render_audio_wave"), &GDAudioWaveRenderer::RenderAudioWave);
 }
 
 godot::Ref<godot::Texture> GDAudioWaveRenderer::RenderAudioWave(godot::String _File, godot::Vector2 _Size) const
@@ -35,15 +36,13 @@ godot::Ref<godot::Texture> GDAudioWaveRenderer::RenderAudioWave(godot::String _F
     if(!loader->Load(_File))
         return nullptr;
 
-    const godot::PoolRealArray &data = loader->GetPCMFloatFrames();
+    const godot::PackedRealArray &data = loader->GetPCMFloatFrames();
     float step = data.size() / _Size.x;
 
     // Creates the image for the thumbnail.
-    godot::Ref<godot::Image> thumbnail = godot::Image::_new();
+    godot::Ref<godot::Image> thumbnail = memnew(godot::Image);
     thumbnail->create(_Size.x, _Size.y, false, godot::Image::FORMAT_RGBA8);
     
-    thumbnail->lock();
-
     // Renders the thumbnail.
     for (size_t x = 0; x < _Size.x; x++)
     {
@@ -56,7 +55,7 @@ godot::Ref<godot::Texture> GDAudioWaveRenderer::RenderAudioWave(godot::String _F
         float min = 1, max = -1;
         for (size_t i = from; i < to; i++)
         {
-            float val = data.read()[i];
+            float val = data.ptr()[i];
             max = std::max(val, max);
             min = std::min(val, min);
         }
@@ -70,9 +69,8 @@ godot::Ref<godot::Texture> GDAudioWaveRenderer::RenderAudioWave(godot::String _F
         for (size_t y = max; y < min; y++)
             thumbnail->set_pixel(x, y, godot::Color(0.223529, 0.560784, 0.658824));
     }
-    thumbnail->unlock();
 
-    godot::Ref<godot::ImageTexture> result = godot::ImageTexture::_new();
-    result->create_from_image(thumbnail, 0);
+    godot::Ref<godot::ImageTexture> result = memnew(godot::ImageTexture);
+    result->create_from_image(thumbnail);
     return result;
 }

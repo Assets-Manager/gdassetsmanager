@@ -9,8 +9,8 @@
 
 bool CFlacAudioLoader::Load(const godot::String &_Path)
 {
-    m_File.instance();
-    if(m_File->open(_Path, godot::File::READ) != godot::Error::OK)
+    m_File = godot::FileAccess::open(_Path, godot::FileAccess::READ);
+    if(!m_File.is_valid())
         return false;
 
     drflac *flac = drflac_open(&CDRAudioLoader::dr_read_proc, (drflac_seek_proc)&CDRAudioLoader::dr_seek_proc, this, nullptr);
@@ -21,7 +21,7 @@ bool CFlacAudioLoader::Load(const godot::String &_Path)
     m_SampleRate = flac->sampleRate;
 
     m_PCMFloatFrames.resize(flac->totalPCMFrameCount * m_ChannelCount);
-    drflac_read_pcm_frames_f32(flac, flac->totalPCMFrameCount, m_PCMFloatFrames.write().ptr());
+    drflac_read_pcm_frames_f32(flac, flac->totalPCMFrameCount, m_PCMFloatFrames.ptrw());
 
     drflac_close(flac);
     m_File->close();

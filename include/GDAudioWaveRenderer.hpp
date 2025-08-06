@@ -3,19 +3,19 @@
 #ifndef GDAUDIOWAVERENDERER_HPP
 #define GDAUDIOWAVERENDERER_HPP
 
-#include <Godot.hpp>
-#include <Reference.hpp>
-#include <Texture.hpp>
+#include <godot_cpp/godot.hpp>
+#include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/classes/texture.hpp>
 
-class GDAudioWaveRenderer : public godot::Reference
+class GDAudioWaveRenderer : public godot::RefCounted
 {
-    GODOT_CLASS(GDAudioWaveRenderer, godot::Reference);
+    GDCLASS(GDAudioWaveRenderer, godot::RefCounted);
     public:
         GDAudioWaveRenderer() = default;
 
         void _init() { }
 
-        static void _register_methods();
+        static void _bind_methods();
 
         godot::Ref<godot::Texture> RenderAudioWave(godot::String _File, godot::Vector2 _Size) const;
 
