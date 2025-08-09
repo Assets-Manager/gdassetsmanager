@@ -1,5 +1,12 @@
 // License
 
+#include "godot_cpp/classes/base_material3d.hpp"
+#include "godot_cpp/classes/global_constants.hpp"
+#include "godot_cpp/classes/texture.hpp"
+#include "godot_cpp/variant/variant.hpp"
+#include <cstdint>
+#include <cstring>
+#include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
@@ -25,27 +32,68 @@ godot::Ref<godot::ImageTexture> GDAssimpLoader::LoadTexture(godot::String _BaseP
     aiTextureMapMode mappingMode;
     if(_Material->GetTexture(_Type, 0, &path, nullptr, nullptr, nullptr, nullptr, &mappingMode) == AI_SUCCESS)
     {
-        godot::Ref<godot::Image> img = memnew(godot::Image);
-        auto gdpath = _BasePath.path_join(path.C_Str());
-        if(img->load(gdpath) == godot::Error::OK)
+        godot::Ref<godot::Image> img;
+        godot::String textureName;
+        godot::Error error = godot::Error::OK;
+        if(auto texture = m_CurrentScene->GetEmbeddedTexture(path.C_Str()))
         {
-            godot::Ref<godot::ImageTexture> texture = memnew(godot::ImageTexture);
-            // int32_t flags = godot::Texture::FLAGS_DEFAULT;
+            textureName = texture->mFilename.C_Str();
+            // Image data is compressed.
+            if(texture->mHeight == 0)
+            {
+                godot::PackedByteArray data;
+                data.resize(texture->mWidth);
+                memcpy(data.ptrw(), texture->pcData, texture->mWidth);
 
-            // if (mappingMode == aiTextureMapMode_Clamp) 
-            //     flags = flags & ~godot::Texture::FLAG_REPEAT;
-            // else if (mappingMode == aiTextureMapMode_Mirror)
-            //     flags = flags | godot::Texture::FLAG_MIRRORED_REPEAT;
+                img.instantiate();
+                if(strcmp(texture->achFormatHint, "jpg") == 0)
+                    error = img->load_jpg_from_buffer(data);
+                else if(strcmp(texture->achFormatHint, "png") == 0)
+                    error = img->load_png_from_buffer(data);
+                else if(strcmp(texture->achFormatHint, "webp") == 0)
+                    error = img->load_webp_from_buffer(data);
+                else
+                    error = godot::Error::ERR_FILE_UNRECOGNIZED;
+            }
+            else
+            {
+                godot::PackedByteArray data;
+                data.resize(texture->mWidth * texture->mHeight * 4);
+                for (uint32_t x = 0; x < texture->mWidth; x++) 
+                {
+                    for (uint32_t y = 0; y < texture->mHeight; y++) 
+                    {
+                        data[x * 4 + texture->mWidth * 4 * y] = texture->pcData[x + texture->mWidth * y].r;
+                        data[x * 4 + 1 + texture->mWidth * 4 * y] = texture->pcData[x + texture->mWidth * y].g;
+                        data[x * 4 + 2 + texture->mWidth * 4 * y] = texture->pcData[x + texture->mWidth * y].b;
+                        data[x * 4 + 3 + texture->mWidth * 4 * y] = texture->pcData[x + texture->mWidth * y].a;
+                    }
+                }
 
-            // texture->create_from_image(img, flags);
-            texture->create_from_image(img);
+                img = godot::Image::create_from_data(texture->mWidth, texture->mHeight, false, godot::Image::FORMAT_RGBA8, data);
+            }
+        }
+        else
+        {
+            godot::Ref<godot::Image> img;
+            auto gdpath = _BasePath.path_join(path.C_Str());
+            textureName = gdpath;
+            error = img->load(gdpath);
+        }
+
+        if(img.is_valid() && error == godot::Error::OK)
+        {
+            godot::Ref<godot::ImageTexture> texture = godot::ImageTexture::create_from_image(img);
+            if (mappingMode == aiTextureMapMode_Clamp)
+                texture->set_meta("repeat", false);
+
             return texture;
         }
         else
         {
             godot::Ref<GDError> err = memnew(GDError);
             err->ErrorCode = (int)godot::Error::ERR_FILE_CANT_OPEN;
-            err->Message = gdpath;
+            err->Message = "Failed to load texture (" + textureName + ")";
             m_Errors.append(err);
         }
     }    
@@ -146,6 +194,10 @@ godot::Ref<godot::StandardMaterial3D> GDAssimpLoader::aiMaterialToGodot(godot::S
             ret->set_cull_mode(godot::StandardMaterial3D::CULL_DISABLED); // since you can see both sides in transparent mode
         }
 
+        auto value = texture->get_meta("repeat");
+        if(value.get_type() == godot::Variant::BOOL)
+            ret->set_flag(godot::BaseMaterial3D::Flags::FLAG_USE_TEXTURE_REPEAT, value);
+
         ret->set_texture(godot::StandardMaterial3D::TEXTURE_ALBEDO, texture);
     }
 
@@ -201,7 +253,7 @@ godot::Ref<godot::StandardMaterial3D> GDAssimpLoader::aiMaterialToGodot(godot::S
     return ret;
 }
 
-godot::Node3D *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Node3D *_Owner, godot::Node3D *_Parent, const aiScene *_Scene, const aiNode *_Node)
+godot::Node3D *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Node3D *_Owner, godot::Node3D *_Parent, const aiNode *_Node)
 {
     godot::Node3D *ret = nullptr;
 
@@ -216,7 +268,7 @@ godot::Node3D *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Node3D *
 
         for (int i = 0; i < _Node->mNumMeshes; i++)
         {
-            const aiMesh *mesh = _Scene->mMeshes[_Node->mMeshes[i]];
+            const aiMesh *mesh = m_CurrentScene->mMeshes[_Node->mMeshes[i]];
 
             godot::PackedVector3Array vertices;
             godot::PackedInt32Array indices;
@@ -301,11 +353,14 @@ godot::Node3D *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Node3D *
             godot::Ref<godot::StandardMaterial3D> material;
             if(!materials.has(mesh->mMaterialIndex))
             {
-                material = aiMaterialToGodot(_BasePath, _Scene->mMaterials[mesh->mMaterialIndex]);
+                material = aiMaterialToGodot(_BasePath, m_CurrentScene->mMaterials[mesh->mMaterialIndex]);
                 materials[mesh->mMaterialIndex] = material;
             }
             else
                 material = materials[mesh->mMaterialIndex];
+
+            if(mesh->mColors[0])
+                material->set_flag(godot::BaseMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
 
             arrayMesh->surface_set_material(arrayMesh->get_surface_count() - 1, material);
         }
@@ -335,7 +390,7 @@ godot::Node3D *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Node3D *
     // Go through all children
     for(int i = 0; i < _Node->mNumChildren; i++)
     {
-        godot::Node3D *child = LoadTree(_BasePath, _Owner, ret, _Scene, _Node->mChildren[i]);
+        godot::Node3D *child = LoadTree(_BasePath, _Owner, ret, _Node->mChildren[i]);
         child->set_owner(_Owner);
     }
 
@@ -352,7 +407,7 @@ godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File)
     importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
 
-    const aiScene *scene = importer.ReadFile(_File.utf8().get_data(), 
+    m_CurrentScene = importer.ReadFile(_File.utf8().get_data(), 
                                             aiProcess_CalcTangentSpace |
                                             aiProcess_FlipWindingOrder | 
                                             aiProcess_ImproveCacheLocality |
@@ -364,8 +419,9 @@ godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File)
                                             aiProcess_RemoveRedundantMaterials | 
                                             aiProcess_PopulateArmatureData |
                                             aiProcess_OptimizeMeshes);
-    if(!scene)
+    if(!m_CurrentScene)
     {
+        // scene->GetEmbeddedTexture()
         godot::Ref<GDError> err = memnew(GDError);
         err->ErrorCode = (int)godot::Error::ERR_CANT_OPEN;
         err->Message = _File + " Error: " + importer.GetErrorString();
@@ -376,6 +432,6 @@ godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File)
     }
 
     godot::Ref<godot::PackedScene> ret = memnew(godot::PackedScene);
-    ret->pack(LoadTree(_File.get_base_dir(), nullptr, nullptr, scene, scene->mRootNode));
+    ret->pack(LoadTree(_File.get_base_dir(), nullptr, nullptr, m_CurrentScene->mRootNode));
     return ret;
 }

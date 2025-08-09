@@ -38,10 +38,10 @@ void initialize_assets_manager_module(ModuleInitializationLevel p_level)
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE)
 		return;
 
-	// GDREGISTER_RUNTIME_CLASS(GDError);
-    // GDREGISTER_RUNTIME_CLASS(GDFilewatcher);
-    // GDREGISTER_RUNTIME_CLASS(GDAudioWaveRenderer);
-    // GDREGISTER_RUNTIME_CLASS(GDAssimpLoader);
+	GDREGISTER_RUNTIME_CLASS(GDError);
+    GDREGISTER_RUNTIME_CLASS(GDFilewatcher);
+    GDREGISTER_RUNTIME_CLASS(GDAudioWaveRenderer);
+    GDREGISTER_RUNTIME_CLASS(GDAssimpLoader);
 }
 
 void uninitialize_assets_manager_module(ModuleInitializationLevel p_level) 

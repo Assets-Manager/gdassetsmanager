@@ -17,7 +17,7 @@ class GDAudioWaveRenderer : public godot::RefCounted
 
         static void _bind_methods();
 
-        godot::Ref<godot::Texture> RenderAudioWave(godot::String _File, godot::Vector2 _Size) const;
+        godot::Ref<godot::Texture> RenderAudioWave(godot::String _File, godot::Vector2i _Size) const;
 
         ~GDAudioWaveRenderer() = default;
 };

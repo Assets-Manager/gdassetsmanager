@@ -3,6 +3,8 @@
 #ifndef GDASSIMP_HPP
 #define GDASSIMP_HPP
 
+#include <godot_cpp/variant/typed_array.hpp>
+#include <GDError.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
@@ -26,16 +28,17 @@ class GDAssimpLoader : public godot::RefCounted
          */
         godot::Ref<godot::PackedScene> Load(godot::String _File);
 
-        godot::Array GetErrors()
+        godot::TypedArray<GDError> GetErrors()
         {
             return m_Errors;
         }
     private:
-        godot::Array m_Errors;
+        const aiScene *m_CurrentScene{};
+        godot::TypedArray<GDError> m_Errors;
 
         godot::Ref<godot::ImageTexture> LoadTexture(godot::String _BasePath, const aiMaterial *_Material, aiTextureType _Type);
 
-        godot::Node3D *LoadTree(godot::String _BasePath, godot::Node3D *_Owner, godot::Node3D *_Parent, const aiScene *_Scene, const aiNode *_Node);
+        godot::Node3D *LoadTree(godot::String _BasePath, godot::Node3D *_Owner, godot::Node3D *_Parent, const aiNode *_Node);
 
         godot::Ref<godot::StandardMaterial3D> aiMaterialToGodot(godot::String _BasePath, const aiMaterial *_Material);
 };
