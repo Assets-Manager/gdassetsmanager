@@ -1,9 +1,14 @@
 // License
 
-#include "godot_cpp/classes/base_material3d.hpp"
-#include "godot_cpp/classes/global_constants.hpp"
-#include "godot_cpp/classes/texture.hpp"
-#include "godot_cpp/variant/variant.hpp"
+#include <godot_cpp/classes/base_material3d.hpp>
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/global_constants.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/texture.hpp>
+#include <godot_cpp/classes/window.hpp>
+#include <godot_cpp/variant/string.hpp>
+#include <godot_cpp/variant/variant.hpp>
 #include <cstdint>
 #include <cstring>
 #include <godot_cpp/variant/packed_byte_array.hpp>
@@ -75,8 +80,19 @@ godot::Ref<godot::ImageTexture> GDAssimpLoader::LoadTexture(godot::String _BaseP
         }
         else
         {
-            godot::Ref<godot::Image> img;
+            img.instantiate();
             auto gdpath = _BasePath.path_join(path.C_Str());
+
+            // If the user already moved all textures to the library, load them from there.
+            if(!godot::FileAccess::file_exists(gdpath))
+            {
+                // Gets the autoload AssetsLibrary, to get the real path of the relative one.
+                auto tree = Object::cast_to<godot::SceneTree>(godot::Engine::get_singleton()->get_main_loop());
+                auto *assetsLibrary = tree->get_root()->get_node_or_null("/root/AssetsLibrary");
+                if(assetsLibrary)
+                    gdpath = assetsLibrary->call("get_library_path_from_relative_path", path.C_Str());
+            }
+
             textureName = gdpath;
             error = img->load(gdpath);
         }
@@ -92,7 +108,11 @@ godot::Ref<godot::ImageTexture> GDAssimpLoader::LoadTexture(godot::String _BaseP
         else
         {
             godot::Ref<GDError> err = memnew(GDError);
-            err->ErrorCode = (int)godot::Error::ERR_FILE_CANT_OPEN;
+
+            if(error == godot::Error::OK)
+                err->ErrorCode = (int)godot::Error::ERR_FILE_CANT_OPEN;
+            else
+                err->ErrorCode = (int)error;
             err->Message = "Failed to load texture (" + textureName + ")";
             m_Errors.append(err);
         }
@@ -194,10 +214,12 @@ godot::Ref<godot::StandardMaterial3D> GDAssimpLoader::aiMaterialToGodot(godot::S
             ret->set_cull_mode(godot::StandardMaterial3D::CULL_DISABLED); // since you can see both sides in transparent mode
         }
 
-        auto value = texture->get_meta("repeat");
-        if(value.get_type() == godot::Variant::BOOL)
-            ret->set_flag(godot::BaseMaterial3D::Flags::FLAG_USE_TEXTURE_REPEAT, value);
-
+        if(texture->has_meta("repeat"))
+        {
+            auto value = texture->get_meta("repeat");
+            if(value.get_type() == godot::Variant::BOOL)
+                ret->set_flag(godot::BaseMaterial3D::Flags::FLAG_USE_TEXTURE_REPEAT, value);
+        }
         ret->set_texture(godot::StandardMaterial3D::TEXTURE_ALBEDO, texture);
     }
 
