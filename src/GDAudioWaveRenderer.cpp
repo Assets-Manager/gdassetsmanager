@@ -66,7 +66,10 @@ godot::Ref<godot::Texture> GDAudioWaveRenderer::RenderAudioWave(godot::String _F
 
     // Loads the audio file.
     if(!loader->Load(_File))
+    {
+        delete loader;
         return nullptr;
+    }
 
     const godot::PackedRealArray &data = loader->GetPCMFloatFrames();
     auto sampleCount = data.size() / loader->GetChannelCount();
@@ -122,5 +125,6 @@ godot::Ref<godot::Texture> GDAudioWaveRenderer::RenderAudioWave(godot::String _F
     }
 
     godot::Ref<godot::ImageTexture> result = godot::ImageTexture::create_from_image(thumbnail);
+    delete loader;
     return result;
 }
