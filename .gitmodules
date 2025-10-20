@@ -2,3 +2,6 @@
 	path = third-party/godot-cpp
 	url = https://github.com/godotengine/godot-cpp.git
 	branch = 4.4
+[submodule "third-party/assimp"]
+	path = third-party/assimp
+	url = https://github.com/assimp/assimp.git
