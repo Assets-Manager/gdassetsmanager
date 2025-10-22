@@ -1,9 +1,15 @@
 cmake_minimum_required(VERSION 3.3.0)
 project(gdassetsmanager VERSION 0.1.0 LANGUAGES CXX C)
 
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(GODOTCPP_TARGET "template_release")
+
+# For now godot needs to be linked dynamicall since heavy use of the STL.
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+    set(GODOTCPP_USE_STATIC_CPP OFF)
+endif()
 
 OPTION(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT "" FALSE)
 OPTION(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT "" FALSE)
@@ -54,7 +60,7 @@ include_directories("${PROJECT_SOURCE_DIR}/third-party/godot-cpp/include"
                     "${PROJECT_SOURCE_DIR}/third-party/filewatcher"
                     "${PROJECT_SOURCE_DIR}/include")
 
-link_directories("${PROJECT_SOURCE_DIR}/third-party/godot-cpp/bin")
+# link_directories("${PROJECT_SOURCE_DIR}/third-party/godot-cpp/bin")
 
 add_library(${PROJECT_NAME} SHARED ${SRCS})
 target_link_libraries(${PROJECT_NAME} ${LIBS} assimp godot-cpp)
