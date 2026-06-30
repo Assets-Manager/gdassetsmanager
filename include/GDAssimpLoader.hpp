@@ -35,6 +35,7 @@ class GDAssimpLoader : public godot::RefCounted
     private:
         const aiScene *m_CurrentScene{};
         godot::TypedArray<GDError> m_Errors;
+        bool m_ConvertTosRGB{};
 
         godot::Ref<godot::ImageTexture> LoadTexture(godot::String _BasePath, const aiMaterial *_Material, aiTextureType _Type);
 

@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include "GDAudioStream.hpp"
 #include <GDAssimpLoader.hpp>
 #include <GDAudioWaveRenderer.hpp>
 #include <GDFilewatcher.hpp>
@@ -42,6 +43,8 @@ void initialize_assets_manager_module(ModuleInitializationLevel p_level)
     GDREGISTER_RUNTIME_CLASS(GDFilewatcher);
     GDREGISTER_RUNTIME_CLASS(GDAudioWaveRenderer);
     GDREGISTER_RUNTIME_CLASS(GDAssimpLoader);
+    GDREGISTER_RUNTIME_CLASS(GDAudioStream);
+    GDREGISTER_RUNTIME_CLASS(GDAudioStreamPlayback);
 }
 
 void uninitialize_assets_manager_module(ModuleInitializationLevel p_level) 

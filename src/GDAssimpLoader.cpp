@@ -1,5 +1,8 @@
 // License
 
+#include "assimp/color4.h"
+#include "godot_cpp/variant/color.hpp"
+#include <cstddef>
 #include <godot_cpp/classes/base_material3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/file_access.hpp>
@@ -133,12 +136,20 @@ godot::Ref<godot::StandardMaterial3D> GDAssimpLoader::aiMaterialToGodot(godot::S
     if(_Material->Get(AI_MATKEY_NAME, name) == AI_SUCCESS)
         ret->set_name(name.C_Str());
 
-    aiColor3D color;
+    aiColor4D color;
     if(_Material->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS)
-        ret->set_albedo(godot::Color(color.r, color.g, color.b));
+    {
+        auto c = godot::Color(color.r, color.g, color.b);
+        if(m_ConvertTosRGB) c = c.linear_to_srgb();
+        ret->set_albedo(c);
+    }
 
     if(_Material->Get(AI_MATKEY_COLOR_EMISSIVE, color) == AI_SUCCESS)
-        ret->set_emission(godot::Color(color.r, color.g, color.b));
+    {
+        auto c = godot::Color(color.r, color.g, color.b);
+        if(m_ConvertTosRGB) c = c.linear_to_srgb();
+        ret->set_emission(c);
+    }
 
     float emissive;
     if(_Material->Get(AI_MATKEY_EMISSIVE_INTENSITY, emissive) == AI_SUCCESS)
@@ -182,7 +193,7 @@ godot::Ref<godot::StandardMaterial3D> GDAssimpLoader::aiMaterialToGodot(godot::S
         ret->set_roughness(roughness);
 
     float anisotropy;
-    if(_Material->Get(AI_MATKEY_ANISOTROPY_FACTOR, roughness) == AI_SUCCESS)
+    if(_Material->Get(AI_MATKEY_ANISOTROPY_FACTOR, anisotropy) == AI_SUCCESS)
     {
         ret->set_anisotropy(anisotropy);
         ret->set_feature(godot::StandardMaterial3D::FEATURE_ANISOTROPY, true);
@@ -346,7 +357,13 @@ godot::Node3D *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Node3D *
             {
                 godot::PackedColorArray colors;
                 colors.resize(mesh->mNumVertices);
-                memcpy(colors.ptrw(), mesh->mColors[0], sizeof(ai_real) * 4 * mesh->mNumVertices);
+                for (size_t i = 0; i < mesh->mNumVertices; i++) 
+                {
+                    const auto c = mesh->mColors[0][i];
+                    colors[i] = godot::Color(c.r, c.g, c.g, c.a);
+                }
+
+                // memcpy(colors.ptrw(), mesh->mColors[0], sizeof(ai_real) * 4 * mesh->mNumVertices);
                 data[godot::ArrayMesh::ARRAY_COLOR] = colors;
             }
 
@@ -381,8 +398,8 @@ godot::Node3D *GDAssimpLoader::LoadTree(godot::String _BasePath, godot::Node3D *
             else
                 material = materials[mesh->mMaterialIndex];
 
-            if(mesh->mColors[0])
-                material->set_flag(godot::BaseMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
+            // if(mesh->mColors[0])
+            //     material->set_flag(godot::BaseMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
 
             arrayMesh->surface_set_material(arrayMesh->get_surface_count() - 1, material);
         }
@@ -452,6 +469,8 @@ godot::Ref<godot::PackedScene> GDAssimpLoader::Load(godot::String _File)
         // ERR_PRINT(importer.GetErrorString());
         return nullptr;
     }
+    auto ext = _File.get_extension().to_lower();
+    m_ConvertTosRGB = ext == "glb" || ext == "gltf";
 
     godot::Ref<godot::PackedScene> ret = memnew(godot::PackedScene);
     ret->pack(LoadTree(_File.get_base_dir(), nullptr, nullptr, m_CurrentScene->mRootNode));
